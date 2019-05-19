@@ -49,13 +49,16 @@ def caesar_encode(args, input_text):
     if not args.key.isdigit():
         sys.exit("The key of сaesar's cipher is a number")
     caesar_shift = int(args.key)
-    for i in range(len(input_text)):
-        if 'a' <= input_text[i].lower() <= 'z':
-            elem = chr((ord(input_text[i].lower()) - ord('a') + caesar_shift) % SIZE_ALPHABET + ord('a'))
-            if input_text[i].isupper():
+    encode_text_list = []
+    for symb in input_text:
+        if 'a' <= symb.lower() <= 'z':
+            elem = chr((ord(symb.lower()) - ord('a') + caesar_shift) % SIZE_ALPHABET + ord('a'))
+            if symb.isupper():
                 elem = elem.upper()
-            input_text = input_text[:i] + elem + input_text[i + 1:]
-    return input_text
+            encode_text_list.append(elem)
+        else:
+            encode_text_list.append(symb)
+    return ''.join(encode_text_list)
 
 
 def vigenere_encode(args, input_text):
@@ -64,16 +67,16 @@ def vigenere_encode(args, input_text):
     key_str = args.key.lower()
     key_index = 0
     new_text = []
-    for i in range(len(input_text)):
-        if 'a' <= input_text[i].lower() <= 'z':
+    for symb in input_text:
+        if 'a' <= symb.lower() <= 'z':
             key_elem = key_str[key_index % len(key_str)].lower()
-            elem = chr((ord(key_elem) + ord(input_text[i].lower()) - 2 * ord('a')) % SIZE_ALPHABET + ord('a'))
-            if input_text[i].isupper():
+            elem = chr((ord(key_elem) + ord(symb.lower()) - 2 * ord('a')) % SIZE_ALPHABET + ord('a'))
+            if symb.isupper():
                 elem = elem.upper()
             new_text.append(elem)
             key_index += 1
         else:
-            new_text.append(input_text[i])
+            new_text.append(symb)
     input_text = ''.join(new_text)
     return input_text
 
@@ -82,11 +85,13 @@ def vernam_encode_decode(args, input_text):
     if not args.key.isalpha():
         exit("The key of vigenere's cipher is a word")
     size_block = 32
+    ans_list = []
     for i in range(len(input_text)):
         if 0 <= ord(input_text[i]) - ord('a') < size_block or 0 <= ord(input_text[i]) - ord('A') < size_block:
             key_elem = args.key[i % len(args.key)].lower()
             elem = chr(((ord(input_text[i]) - ord('a')) ^ (ord(key_elem) - ord('a'))) + ord('a'))
-            input_text = input_text[:i] + elem + input_text[i + 1:]
+            ans_list.append(elem)
+    input_text = ''.join(ans_list)
     return input_text
 
 
@@ -101,9 +106,10 @@ def vigenere_decode(args, input_text):
     if not args.key.isalpha():
         exit("The key of vigenere's cipher is a word")
     args.key = args.key.lower()
-    for i in range(len(args.key)):
-        args.key = args.key[:i] + chr((ord('a') + SIZE_ALPHABET - ord(args.key[i])) % SIZE_ALPHABET + ord('a'))\
-                   + args.key[i + 1:]
+    key_list = []
+    for symb in args.key:
+        key_list.append(chr((ord('a') + SIZE_ALPHABET - ord(symb)) % SIZE_ALPHABET + ord('a')))
+    args.key = ''.join(key_list)
     return vigenere_encode(args, input_text)
 
 
@@ -139,12 +145,13 @@ def hack(args):
     line_shifts = hack_find_line_shifts(args, input_text, len_key)
 
     best_key = ''
-    min_dist = 100
+    min_dist = float("inf")
     for start_shift in range(SIZE_ALPHABET):
-        curr_key = ''
+        curr_key_list = []
         start_elem = chr(ord('a') + start_shift)
         for i in range(len_key):
-            curr_key = curr_key + chr((ord(start_elem) + line_shifts[i] - ord('a')) % SIZE_ALPHABET + ord('a'))
+            curr_key_list.append(chr((ord(start_elem) + line_shifts[i] - ord('a')) % SIZE_ALPHABET + ord('a')))
+        curr_key = ''.join(curr_key_list)
         args.key = curr_key
         curr_dist = get_dist_str(model_dict, vigenere_decode(args, input_text))
         if curr_dist < min_dist:
@@ -159,21 +166,21 @@ def hack(args):
 def hack_find_len_key(input_text, model_dict):
     match_index_model = sum(map(lambda x: x ** 2, model_dict.values()))
     len_key = len(input_text)
-    for len_st in range(1, len(input_text) + 1):
+    for curr_len in range(1, len(input_text) + 1):
         is_corr_st = True
-        for i in range(len_st):
-            gen_s = ''.join(input_text[j * len_st + i] for j in range((len(input_text) - i + len_st - 1) // len_st))
+        for i in range(curr_len):
+            key_s = input_text[i::curr_len]
             dict_symb = {chr(ord('a') + i): 0 for i in range(SIZE_ALPHABET)}
-            for elem in gen_s:
+            for elem in key_s:
                 dict_symb[elem] += 1
-            if len(gen_s) <= 1:
-                sys.exit("Key lenght is not defined")
-            match_index_input = sum(map(lambda x: x * (x - 1) / (len(gen_s) * (len(gen_s) - 1)), dict_symb.values()))
+            if len(key_s) <= 1:
+                sys.exit("Key lenght is not defined, hack is impossible")
+            match_index_input = sum(map(lambda x: x * (x - 1) / (len(key_s) * (len(key_s) - 1)), dict_symb.values()))
             if abs(match_index_model - match_index_input) > 0.03 or abs(match_index_input - 1 / SIZE_ALPHABET) < 0.015:
                 is_corr_st = False
                 break
         if is_corr_st:
-            len_key = len_st
+            len_key = curr_len
             break
     return len_key
 
@@ -285,7 +292,7 @@ def main():
     parser_encode.add_argument('--model-file', type=str, required=True)
     parser_encode.set_defaults(this_func=hack)
 
-    args = parser.parse_args()
+    args = parser.parse_args('hack --input-file output.txt --model-file model.json'.split())
     args.this_func(args)
 
 
