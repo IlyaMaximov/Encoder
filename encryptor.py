@@ -174,7 +174,7 @@ def hack_find_len_key(input_text, model_dict):
             for elem in key_s:
                 dict_symb[elem] += 1
             if len(key_s) <= 1:
-                sys.exit("Key lenght is not defined, hack is impossible")
+                return 1
             match_index_input = sum(map(lambda x: x * (x - 1) / (len(key_s) * (len(key_s) - 1)), dict_symb.values()))
             if abs(match_index_model - match_index_input) > 0.03 or abs(match_index_input - 1 / SIZE_ALPHABET) < 0.015:
                 is_corr_st = False
@@ -292,7 +292,7 @@ def main():
     parser_encode.add_argument('--model-file', type=str, required=True)
     parser_encode.set_defaults(this_func=hack)
 
-    args = parser.parse_args('hack --input-file output.txt --model-file model.json'.split())
+    args = parser.parse_args()
     args.this_func(args)
 
 
